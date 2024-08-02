@@ -32,3 +32,8 @@ main{
       scrollbar-width: none;  /* Firefox */
 }
 }
+
+.masonry-column {
+  padding: 8px; /* adjust as needed */
+  background-clip: padding-box;
+}

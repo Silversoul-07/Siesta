@@ -23,6 +23,27 @@ const nextConfig = {
               ? "http://127.0.0.1:8000/openapi.json"
               : "/api/openapi.json",
         },
+        {
+          source: "/media/:path*",
+          destination:
+            process.env.NODE_ENV === "development"
+              ? "http://127.0.0.1:8000/media/:path*"
+              : "/media/",
+        },
+        {
+          source: "/api/search",
+          destination: 
+          process.env.NODE_ENV === "development"
+              ? "http://127.0.0.1:8000/api/search"
+              : "/api/search",
+        },
+        {
+          source: "/api/visual-search",
+          destination:
+            process.env.NODE_ENV === "development"
+              ? "http://127.0.0.1:8000/api/visual-search"
+              : "/api/visual-search",
+        }
       ];
     },
   };

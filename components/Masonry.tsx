@@ -1,91 +1,103 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Masonry from 'react-masonry-css';
-import InfiniteScroll from 'react-infinite-scroll-component';
 import { Card, CardContent } from '@/components/ui/card';
-import axios from 'axios'; // Make sure to install axios
-import portrait from '@/public/portrait.png';
+import { motion } from 'framer-motion';
+import Link from 'next/link';
 
-const MasonryLayout = () => {
-  const [items, setItems] = useState<any[]>([]);
-  const [page, setPage] = useState(1);
-  const [dropdown, setDropdown] = useState(false);
-  const dropdownItems = ['Newest', 'Oldest', 'Popular'];
+interface MasonryLayoutProps {
+  items: Array<{
+    id: number
+    url: string;
+    title: string;
+  }>;
+  breakpoints: {
+    [key: string]: number;
+  };
+}
 
-  const fetchMoreData = useCallback(async () => {
-    const accessKey = process.env.NEXT_PUBLIC_UNSPLASH_ACCESS_KEY;
-    console.log(accessKey);
-    const response = await axios.get(`/api/images`);    
-    const newItems:JSON = response.data.imagePaths.map((imagePath: string) => ({
-      imageUrl: imagePath,
-      userImage: portrait,
-      user: 'John doe',
-      showImage: Math.random() > 0.5,
-    }));
-
-    setItems((prevItems) => [...prevItems, ...newItems]);
-    setPage((prevPage) => prevPage + 1);
-  }, [items, page]);
+const LazyImage: React.FC<{id:number; src: string; alt: string }> = ({ id, src, alt }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const imgRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchMoreData();
-  }, [fetchMoreData]);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsVisible(true);
+            observer.unobserve(entry.target);
+          } else {
+            setIsVisible(false);
+          }
+        });
+      },
+      { rootMargin: '50px', threshold: 0.1 }
+    );
 
-  const breakpointColumnsObj = {
-    default: 5,
-    1100: 3,
-    700: 2,
-    500: 1,
-  };
+    if (imgRef.current) {
+      observer.observe(imgRef.current);
+    }
+
+    return () => {
+      if (imgRef.current) {
+        observer.unobserve(imgRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isVisible) {
+      setIsLoaded(true);
+    } else {
+      setIsLoaded(false);
+    }
+  }, [isVisible]);
 
   return (
+    <div ref={imgRef} className="w-full h-full">
+      {isLoaded ? (
+        <Link href={`/visual-search/`+id}>
+          <img src={src} alt={alt} className="w-full h-full object-cover" />
+        </Link>
+      ) : (
+        <div className="w-full h-full bg-gray-200 animate-pulse" />
+      )}
+    </div>
+  );
+};
+
+const MasonryLayout: React.FC<MasonryLayoutProps> = ({ items, breakpoints }) => {
+  return (
     <>
-      {/* Title */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-left my-8 text-white pl-4">Discover</h1>
-        <button className="text-white text-sm bg-slate-500 px-2 py-1 rounded-lg" onClick={() => setDropdown(!dropdown)}>Sort</button>
-        {dropdown && (
-          <div className="absolute top-12 right-4 bg-slate-800 rounded-lg p-2">
-            {dropdownItems.map((item) => (
-              <button key={item} className="text-white text-sm bg-slate-500 px-2 py-1 rounded-lg" onClick={() => console.log(item)}>{item}</button>
-            ))}
-          </div>
-        )}
+        <h1 className="text-3xl font-bold text-left my-8 mb-4 text-white pl-4">Discover</h1>
       </div>
-      {/* Dropdown */}
-      <InfiniteScroll
-        dataLength={items.length}
-        next={fetchMoreData}
-        hasMore={true} // You might want to update this based on the API response to stop requests when there are no more items
-        loader={<></>}
+      <Masonry
+        breakpointCols={breakpoints}
+        className="flex w-auto"
+        columnClassName="bg-clip-padding"
       >
-        <Masonry
-          breakpointCols={breakpointColumnsObj}
-          className="flex w-auto"
-          columnClassName="bg-clip-padding px-1"
-        >
-          {items.map((item, index) => (
-
-            <Card className='bg-transparent border-0 relative group mb-6 rounded-none' key={index}>
+        {items.map((item, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.5, delay: index * 0.1 }}
+          >
+            <Card className='bg-transparent border-0 relative group p-[4.5px] lg:p-[4px] rounded-none' key={index}>
               <CardContent>
-
-                <div className="overflow-hidden relative object-cover w-full h-full border border-slate-200 rounded-lg">
-                  <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
+                <div className="overflow-hidden relative object-cover w-full h-full border border-grey-800 rounded-lg  min-h-[200px]">
+                  <LazyImage id={item.id} src={`/media/${item.url}`} alt={`Image ${index}`} />
                 </div>
-
-                {item.showImage && (
-                    <div className="flex items-center mt-2">
-                    <img src={item.userImage} alt={item.user} className="w-8 h-8 rounded-full" />
-                    <p className="text-sm text-white ml-2">{item.user}</p>
-                  </div>
-                  )
-                }
-        
               </CardContent>
             </Card>
-          ))}
-        </Masonry>
-      </InfiniteScroll></>
+          </motion.div>
+        ))}
+      </Masonry>
+    </>
   );
 };
 
